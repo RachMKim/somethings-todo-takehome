@@ -1,0 +1,127 @@
+# Todo App take-home for Somethings
+
+A React single-page application that displays a paginated todo list with client-side CRUD operations.
+
+**Built with**: React, TypeScript, Material UI, TanStack Query (React Query)
+
+## Setup
+
+```bash
+npm install
+npm run dev
+```
+
+## Simplified overview of the requirement
+
+- Fetches todos from JSONPlaceholder API (`/todos?_page=N&_limit=5`)
+- Preloads 4 pages (20 todos) on initial mount
+- Client-side pagination with Next/Previous navigation
+- Full CRUD operations (client-only, no API mutations)
+
+---
+
+## Understanding the Requirements
+
+Upon reading through the requirements for this take-home, I ran into a dilemma. The spec states: *"Support exactly 4 pages (Pages 1–4), each with 5 items."*
+
+We also need to support CRUD operations. So what happens when:
+- A user **deletes** items? Do we show empty pages, or does the page count shrink?
+- A user **creates** new items? What if we go beyond 20 todos?
+
+### Options I Considered
+
+There were a couple of routes I could take to make this todo app work:
+
+| Approach | What happens |
+|----------|--------------|
+| Allow unlimited adds, grow pagination | Pages 5, 6, 7... but this violates "exactly 4 pages" |
+| Allow adds but hide overflow items | Confusing — user creates a todo and it disappears? |
+| Cap at 20 items, show feedback when full | Clear, predictable, respects the constraint |
+
+### Product Decision
+
+Upon considering the different routes, I went with the option that **meets the constraints** while also providing the **most intuitive UX** for the user's product experience. 
+
+Engineering efforts should always be thinking from the user's standpoint first. The solution needs to feel natural and predictable.
+
+If I allowed unlimited adds but kept pagination fixed at 4 pages, it would create a discrepancy — users would add todos that vanishes, and would not be an intuitive experience. 
+
+Optimization:
+
+- **A hard cap at 20 items** (4 pages × 5 items)
+- **An inline helper message** under the add form when the limit is reached, explaining why and what to do (delete an item to make room)
+- **Dynamic page indicator** that adjusts as items are deleted (e.g., "Page 2 of 3" if only 15 items remain) but keeps hard max of 4 pages as per constraints. 
+
+This keeps the UX smooth while respecting the spec's "exactly 4 pages" constraint as a maximum boundary.
+
+---
+
+## Technical Design Decisions
+
+### Why Vite over Next.js
+
+This is a client-side SPA with no server-side rendering, static generation, or complex routing needs. Vite provides:
+- Faster dev server startup
+- Simpler configuration
+- Appropriate tooling for the scope
+
+**In production**, I would consider Next.js for apps requiring SSR, file-based routing, API routes, or SEO optimization.
+
+### Why React Query (TanStack Query)
+
+I chose to use React Query for data fetching instead of plain `fetch` + `useState`/`useEffect`. Here's why:
+
+| Benefit | What it gives us |
+|---------|------------------|
+| **Built-in caching** | Each page is cached with a unique key (`['todos', 1]`, `['todos', 2]`, etc.) |
+| **Parallel fetching** | `useQueries` fetches all 4 pages simultaneously |
+| **Loading/error states** | No manual `useState` for `loading` and `error` — React Query handles it |
+| **Stale time control** | Setting `staleTime: Infinity` prevents unnecessary refetches |
+
+
+### Pagination Approach
+
+- **Preload**: Fetch pages 1–4 in parallel on mount using React Query's `useQueries`
+- **Client-side navigation**: Access cached page data directly (no network requests after initial load)
+- **Dynamic page indicator**: Shows "Page X of N" where N adjusts based on current item count (max 4)
+- **Hard cap at 20 items**: Prevents exceeding 4 pages; Create is disabled when at capacity
+
+### CRUD Behavior
+
+| Operation | Behavior |
+|-----------|----------|
+| **Create** | New todo added to top of list (page 1), auto-navigates to page 1. Disabled if 20 items exist. |
+| **Edit** | Inline editing of title and completed status (chip toggle) |
+| **Delete** | Removes from client state; page indicator adjusts if pages become empty |
+
+- All mutations are **client-only** — no POST/PUT/DELETE to the API
+- New todo IDs generated with `Date.now()` (no collision with API IDs 1–200)
+- Completed status is displayed via a **Pending/Completed** chip
+
+---
+
+## Summary: Why This Approach?
+
+| Decision | Reasoning |
+|----------|-----------|
+| **Vite over Next.js** | Right tool for a client-side SPA; no SSR/SSG overhead |
+| **Cap at 20 items** | Respects "4 pages" constraint while keeping UX predictable |
+| **Dynamic page indicator** | Adjusts to actual content (1–4 pages) rather than showing empty pages |
+| **New todos at top** | Most intuitive — users see what they just created |
+| **Auto-navigate on create** | Ensures the new todo is visible immediately |
+
+**In production**, I would implement dynamic pagination (unlimited pages) with server persistence — the 4-page cap is specific to this take-home's constraints.
+
+---
+
+## What I'd Do Differently in Production
+
+- **Dynamic pagination**: No hard cap; pages grow as needed
+- **Server persistence**: POST/PUT/DELETE to a real backend
+- **Optimistic updates**: Update UI immediately, reconcile with server response
+- **Error recovery**: Retry logic, toast notifications for failed operations
+- **Testing**: Unit tests for CRUD logic, integration tests for pagination flow
+
+### Beyond scope (nice to have)
+- **Kanban columns**: Allow moving todos across status columns
+- **Richer details**: Descriptions, due dates, priorities, tags, assignees(if any)
