@@ -47,11 +47,16 @@ export default function App() {
     currentPage * ITEMS_PER_PAGE
   );
 
+  if (currentPage > totalPages) {
+    setCurrentPage(totalPages);
+  }
+
   const handleAdd = (title: string) => {
     if (allTodos.length >= MAX_ITEMS) return;
 
+    const nextId = allTodos.reduce((maxId, todo) => Math.max(maxId, todo.id), 0) + 1;
     const newTodo: Todo = {
-      id: Date.now(),
+      id: nextId,
       title,
       completed: false,
     };
